@@ -1,0 +1,7 @@
+customtkinter
+tkintermapview
+osmnx
+geopandas
+pandas
+networkx
+shapely
