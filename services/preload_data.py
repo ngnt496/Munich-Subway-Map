@@ -3,7 +3,7 @@ import pickle
 
 import osmnx as ox
 
-from station_store import fetch_station_records_for_place, remove_non_passenger_subway_edges, save_station_records
+from services.station_store import fetch_station_records_for_place, remove_non_passenger_subway_edges, save_station_records
 
 
 PLACE_NAME = "Munich, Bavaria, Germany"

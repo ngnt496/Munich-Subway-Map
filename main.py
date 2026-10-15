@@ -7,8 +7,8 @@ from pathlib import Path
 import time
 import pickle
 import tkinter as tk
-from algorithms import find_route_multimodal_via_rail
-from station_store import (
+from services.algorithms import find_route_multimodal_via_rail
+from services.station_store import (
     add_station_transfer_edges,
     fetch_station_records_for_place,
     load_station_records,
