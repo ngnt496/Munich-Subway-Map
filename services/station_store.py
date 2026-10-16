@@ -8,7 +8,7 @@ import osmnx as ox
 
 StationRecord = Dict[str, float | int | str]
 
-
+# tính khoảng cách haversine giữa điểm (lat1, lon1) và điểm (lat2, lon2)
 def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
@@ -17,7 +17,7 @@ def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> flo
     a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
     return 6371000 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-
+# lấy kinh độ và vĩ độ của một trạm
 def _extract_point_coords(geometry):
     if geometry.geom_type == "Point":
         return geometry.y, geometry.x
@@ -25,47 +25,14 @@ def _extract_point_coords(geometry):
     point = geometry.centroid
     return point.y, point.x
 
-
-def fetch_station_nodes(graph, center_lat: float, center_lon: float, dist: int) -> List[int]:
-    tags = {"railway": ["station", "halt", "stop"]}
-    features = ox.features_from_point((center_lat, center_lon), tags=tags, dist=dist)
-
-    station_node_set = set()
-    for _, row in features.iterrows():
-        geometry = row.get("geometry")
-        if geometry is None or geometry.is_empty:
-            continue
-
-        lat, lon = _extract_point_coords(geometry)
-        station_node = ox.nearest_nodes(graph, lon, lat)
-        station_node_set.add(int(station_node))
-
-    return sorted(station_node_set)
-
-
-def fetch_station_nodes_for_place(graph, place_name: str) -> List[int]:
-    tags = {"railway": ["station", "halt", "stop"]}
-    features = ox.features_from_place(place_name, tags=tags)
-
-    station_node_set = set()
-    for _, row in features.iterrows():
-        geometry = row.get("geometry")
-        if geometry is None or geometry.is_empty:
-            continue
-
-        lat, lon = _extract_point_coords(geometry)
-        station_node = ox.nearest_nodes(graph, lon, lat)
-        station_node_set.add(int(station_node))
-
-    return sorted(station_node_set)
-
-
+# tạo danh sách bản ghi các ga tàu
 def fetch_station_records_for_place(access_graph, rail_graph, place_name: str) -> List[StationRecord]:
     tags = {"railway": ["station", "halt", "stop"]}
     features = ox.features_from_place(place_name, tags=tags)
 
     station_records = []
     seen = set()
+    # lọc các ga tàu không phải là ga tàu điện ngầm và các ga tàu không có thông tin về vị trí
     for _, row in features.iterrows():
         station_type = str(row.get("station") or "").strip().lower()
         subway_flag = str(row.get("subway") or "").strip().lower()
@@ -83,7 +50,7 @@ def fetch_station_records_for_place(access_graph, rail_graph, place_name: str) -
         if key in seen:
             continue
         seen.add(key)
-
+        # thêm bản ghi ga tàu vào danh sách
         station_records.append(
             {
                 "name": str(row.get("name") or row.get("ref") or "Station"),
@@ -148,7 +115,7 @@ def ensure_station_access_nodes(station_records: List[StationRecord], access_gra
 
     return updated_records, changed
 
-
+# thêm các cạnh chuyển đổi giữa các nút đường sắt thuộc cùng một ga tàu điện ngầm
 def add_station_transfer_edges(rail_graph, station_records: List[StationRecord], max_transfer_m: float = 600.0) -> int:
     """Connect multiple rail nodes that belong to the same U-Bahn station."""
     nodes_by_station = {}
@@ -191,7 +158,7 @@ def add_station_transfer_edges(rail_graph, station_records: List[StationRecord],
 
     return added_edges
 
-
+# xóa các đoạn đường ray tàu điện ngầm không phục vụ hành khách
 def remove_non_passenger_subway_edges(rail_graph) -> int:
     """Remove service/yard subway tracks that are not passenger route segments."""
     blocked_services = {"yard", "siding", "spur", "crossover"}
@@ -209,34 +176,14 @@ def remove_non_passenger_subway_edges(rail_graph) -> int:
     rail_graph.remove_edges_from(edges_to_remove)
     return len(edges_to_remove)
 
-
-def save_station_nodes(station_nodes: List[int], file_path: str) -> None:
-    path = Path(file_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"station_nodes": station_nodes}
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def load_station_nodes(file_path: str) -> List[int]:
-    path = Path(file_path)
-    if not path.exists():
-        return []
-
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        nodes = payload.get("station_nodes", [])
-        return [int(node) for node in nodes]
-    except (json.JSONDecodeError, TypeError, ValueError):
-        return []
-
-
+# lưu trữ danh sách các bản ghi ga tàu vào một tệp JSON
 def save_station_records(station_records: List[StationRecord], file_path: str) -> None:
     path = Path(file_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"station_records": station_records}
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-
+# đọc danh sách các bản ghi ga tàu từ một tệp JSON
 def load_station_records(file_path: str) -> List[StationRecord]:
     path = Path(file_path)
     if not path.exists():
